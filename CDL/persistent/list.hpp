@@ -3,12 +3,12 @@
 //
 
 /*
-        TODO: Relax the memory order.
-        TODO: Clean up interface, auxiliary functions
-                        * Keep track of size?
-                        * Fix the accessibility, currently everything is public.
-                        * Currently just a list based stack
-        TODO: Create iterators, (add STL required types)
+    TODO: Relax the memory order.
+    TODO: Clean up interface, auxiliary functions
+            * Keep track of size?
+            * Fix the accessibility, currently everything is public.
+            * Currently just a list based stack
+    TODO: Create iterators, (add STL required types)
 */
 
 #pragma once

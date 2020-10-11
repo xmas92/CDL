@@ -3,19 +3,18 @@
 //
 
 /*
-        TODO: Implement it :)
-                * How?
-                    * AMT (requires fixed size for direct indexing)
-                * Slicing?
-                    * Slicing beginning is trivial
-                    * Middle is hard if misaligned. Solution?
-                        * Maybe allow non fixed sized chunks and/or have a
-                            global offset
-                        * Regardless requires some cleaver and cheap AMT
-                            compatible indexing.
-                        * Either direct index mapped or using binary search.
-                            Search would be something like
-                            O(log_x n * log_2 x) == O(log_2 n)
+    TODO: Implement it :)
+            * How?
+                * AMT (requires fixed size for direct indexing)
+            * Slicing?
+                * Slicing beginning is trivial
+                * Middle is hard if misaligned. Solution?
+                    * Maybe allow non fixed sized chunks and/or have a global
+                        offset
+                    * Regardless requires some cleaver and cheap AMT compatible
+                        indexing.
+                    * Either direct index mapped or using binary search. Search
+                        would be O(log_x n * log_2 x) == O(log_2 n)
 */
 
 #pragma once
