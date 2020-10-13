@@ -241,7 +241,7 @@ class TranslationInput {
   constexpr TranslationInput& operator=(TranslationInput&&) = default;
   ~TranslationInput() = default;
 
-  std::optional<std::u32string> Next(Offset count) {
+  std::optional<std::u32string> Next(Offset count) noexcept(not lazy_read) {
     if (HasMore(count)) {
       auto next_span = PostBufferSpan().first(count);
       Position() += count;
@@ -250,13 +250,13 @@ class TranslationInput {
     return std::optional<std::u32string>();
   }
 
-  std::optional<char32_t> NextChar() {
+  std::optional<char32_t> NextChar() noexcept(not lazy_read) {
     if (HasMore()) {
       return Buffer()[Position()++];
     }
     return std::optional<char32_t>();
   }
-  std::optional<char32_t> PeekChar() {
+  std::optional<char32_t> PeekChar() noexcept(not lazy_read) {
     if (HasMore()) {
       return Buffer()[Position()];
     }
