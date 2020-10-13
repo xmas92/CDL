@@ -83,7 +83,8 @@ requires(helper::IsPowerOf2(TrieFanOut) &&
     return data.contains(forward<T>(value));
   }
 
-  [[nodiscard]] constexpr std::optional<value_type> find(const value_type& value) {
+  [[nodiscard]] constexpr std::optional<value_type> find(
+      const value_type& value) {
     return data.find(value);
   }
   [[nodiscard]] constexpr std::optional<value_type> find(value_type&& value) {

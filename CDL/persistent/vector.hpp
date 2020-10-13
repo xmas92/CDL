@@ -12,12 +12,13 @@
 
 namespace persistent {
 
-template <typename T, size_t ChunkSize, size_t TrieFanOut,
-          typename Allocator, bool ThreadSafe>
+template <typename T, size_t ChunkSize, size_t TrieFanOut, typename Allocator,
+          bool ThreadSafe>
 requires(helper::IsPowerOf2(TrieFanOut) &&
          helper::IsPowerOf2(ChunkSize)) struct Vector {
  private:
-  using ChunkedArray = chunked_array::ChunkedArray<T, ChunkSize, TrieFanOut, Allocator, ThreadSafe>;
+  using ChunkedArray = chunked_array::ChunkedArray<T, ChunkSize, TrieFanOut,
+                                                   Allocator, ThreadSafe>;
 
  public:
   using ContainerType = ChunkedArray;

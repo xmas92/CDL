@@ -18,7 +18,8 @@ requires(helper::IsPowerOf2(TrieFanOut) &&
          std::unsigned_integral<std::invoke_result_t<Hash, T>> &&
          std::predicate<Predicate, T, T>) struct Set {
  private:
-  using HAMT = hamt::HAMT<T, Hash, Predicate, TrieFanOut, Allocator, ThreadSafe>;
+  using HAMT =
+      hamt::HAMT<T, Hash, Predicate, TrieFanOut, Allocator, ThreadSafe>;
 
  public:
   using ContainerType = std::conditional_t<ordered, void, HAMT>;

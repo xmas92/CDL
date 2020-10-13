@@ -148,8 +148,7 @@ struct Or {
       auto ret = rule.Match(ti);
       if (ret) token = rule;
       return ret;
-    }
-    else
+    } else
       return Rule().Match(ti);
   }
 };

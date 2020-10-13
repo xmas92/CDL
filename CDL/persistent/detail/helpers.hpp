@@ -15,7 +15,7 @@ namespace helper {
 using std::numeric_limits;
 using std::unsigned_integral;
 template <unsigned_integral Base>
-    [[nodiscard]] constexpr auto Log2(Base x) noexcept {
+[[nodiscard]] constexpr auto Log2(Base x) noexcept {
   auto i = sizeof(Base) * CHAR_BIT - 1;
   while (i > 0) {
     if (x >= static_cast<Base>(1u) << i) return i;
@@ -25,7 +25,7 @@ template <unsigned_integral Base>
 }
 
 template <unsigned_integral Base>
-    [[nodiscard]] constexpr bool IsPowerOf2(Base x) noexcept {
+[[nodiscard]] constexpr bool IsPowerOf2(Base x) noexcept {
   for (auto i = 0; i < sizeof(Base) * CHAR_BIT; ++i)
     if (x == static_cast<Base>(1u) << i) return true;
   return false;
@@ -79,8 +79,8 @@ requires(is_empty_v<Base> && !is_final_v<Base>) class AssociateBase final
   T value;
 
   template <class... Args>
-  constexpr explicit AssociateBase(DefaultConstructBaseTag, Args&&... args) noexcept(
-      conjunction_v<is_nothrow_default_constructible<Base>,
+  constexpr explicit AssociateBase(DefaultConstructBaseTag, Args&&... args)
+noexcept( conjunction_v<is_nothrow_default_constructible<Base>,
                     is_nothrow_constructible<T, Args...>>)
       : Base(), value(forward<Args>(args)...) {}
 
@@ -97,6 +97,6 @@ requires(is_empty_v<Base> && !is_final_v<Base>) class AssociateBase final
   constexpr const Base& GetBase() const noexcept { return *this; }
 };
 */
-}  // namespace detail
+}  // namespace helper
 
 }  // namespace persistent
