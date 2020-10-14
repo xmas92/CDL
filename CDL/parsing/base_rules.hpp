@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include <locale>
 #include <optional>
 #include <string>
 #include <tuple>
@@ -15,12 +16,13 @@
 
 namespace parsing::rules {
 
-namespace detail {}
-
 enum Tokenize : bool { Yes = true, No = false };
-
+// Forward declared tokenized values.
+struct Form;
+struct BindingForm;
 template <typename T>
-concept Tokenizable = T::Tokenize::value;
+concept Tokenizable = T::Tokenize::value || T::base::Tokenize::value ||
+                      std::is_same_v<Form, T> || std::is_same_v<BindingForm, T>;
 template <typename T>
 struct IsTokenize : std::false_type {};
 template <Tokenizable T>
@@ -44,6 +46,200 @@ concept Matchable = true;
 //};
 
 namespace terminal {
+
+// special terminal tokens
+enum Classification {
+  Whitespace,
+  Blankspace,
+  Control,
+  Uppercase,
+  Lowercase,
+  Alphabetic,
+  Digit,
+  Punctuation,
+  HexDigit,
+  Alphanumeric,
+  Printable,
+  Graphical,
+};
+
+namespace detail {
+template <Classification classification>
+constexpr bool CheckClassification(char32_t c) {
+  if constexpr (parsing::rules::terminal::Whitespace == classification)
+    return std::isspace(c, std::locale());
+  else if constexpr (parsing::rules::terminal::Blankspace == classification)
+    return std::isblank(c, std::locale());
+  else if constexpr (parsing::rules::terminal::Control == classification)
+    return std::iscntrl(c, std::locale());
+  else if constexpr (parsing::rules::terminal::Uppercase == classification)
+    return std::isupper(c, std::locale());
+  else if constexpr (parsing::rules::terminal::Lowercase == classification)
+    return std::islower(c, std::locale());
+  else if constexpr (parsing::rules::terminal::Alphabetic == classification)
+    return std::isalpha(c, std::locale());
+  else if constexpr (parsing::rules::terminal::Digit == classification)
+    return std::isdigit(c, std::locale());
+  else if constexpr (parsing::rules::terminal::Punctuation == classification)
+    return std::ispunct(c, std::locale());
+  else if constexpr (parsing::rules::terminal::HexDigit == classification)
+    return std::isxdigit(c, std::locale());
+  else if constexpr (parsing::rules::terminal::Alphanumeric == classification)
+    return std::isalnum(c, std::locale());
+  else if constexpr (parsing::rules::terminal::Printable == classification)
+    return std::isprint(c, std::locale());
+  else if constexpr (parsing::rules::terminal::Graphical == classification)
+    return std::isgraph(c, std::locale());
+  else
+    return false;
+}
+}  // namespace detail
+template <Classification classification, Tokenize tokenize = Tokenize::No>
+struct ClassLiteral {
+  using Tokenize =
+      std::conditional_t<tokenize, std::true_type, std::false_type>;
+  using Token = std::conditional_t<Tokenize::value, char32_t, NoToken>;
+  Token token;
+  template <TranslationInput Input>
+  std::optional<Input> Match(const Input& ti) {
+    Input input = ti;
+    if (auto maybe_literal = input.NextChar();
+        maybe_literal &&
+        detail::CheckClassification<classification>(*maybe_literal)) {
+      if constexpr (tokenize) token = *maybe_literal;
+      return input;
+    }
+    return std::optional<Input>();
+  }
+};
+
+template <Tokenize tokenize = Tokenize::No>
+struct AnyLiteral {
+  using Tokenize =
+      std::conditional_t<tokenize, std::true_type, std::false_type>;
+  using Token = std::conditional_t<Tokenize::value, char32_t, NoToken>;
+  Token token;
+  template <TranslationInput Input>
+  std::optional<Input> Match(const Input& ti) {
+    Input input = ti;
+    if (auto maybe_literal = input.NextChar(); maybe_literal) {
+      if constexpr (tokenize) token = *maybe_literal;
+      return input;
+    }
+    return std::optional<Input>();
+  }
+};
+
+template <char32_t low, char32_t high, Tokenize tokenize = Tokenize::No>
+requires(low <= high) struct RangeLiteral {
+  using Tokenize =
+      std::conditional_t<tokenize, std::true_type, std::false_type>;
+  using Token = std::conditional_t<Tokenize::value, char32_t, NoToken>;
+  Token token;
+  template <TranslationInput Input>
+  std::optional<Input> Match(const Input& ti) {
+    Input input = ti;
+    if (auto maybe_literal = input.NextChar();
+        maybe_literal && low <= *maybe_literal && *maybe_literal <= high) {
+      if constexpr (tokenize) token = *maybe_literal;
+      return input;
+    }
+    return std::optional<Input>();
+  }
+};
+
+template <Tokenize tokenize, char32_t... chars>
+struct String {
+  using Tokenize =
+      std::conditional_t<tokenize, std::true_type, std::false_type>;
+  using Token = std::conditional_t<Tokenize::value, std::u32string, NoToken>;
+  Token token;
+  template <TranslationInput Input>
+  std::optional<Input> Match(const Input& ti) {
+    Input input = ti;
+    if (auto maybe_string = input.Next(sizeof...(chars));
+        maybe_string && *maybe_string == GetValue()) {
+      if constexpr (tokenize) token = *maybe_string;  // move?
+      return input;
+    }
+    return std::optional<Input>();
+  }
+
+ private:
+  constexpr auto GetValue() { return std::u32string({chars...}); };
+};
+
+// https://stackoverflow.com/a/30009264 explains how defer and expand work
+#define EMPTY()
+#define DEFER(id) id EMPTY()
+#define EXPAND(...) __VA_ARGS__
+#define PARSING_RULE_TERMINAL_DETAIL_STRING_NODE_SIZE 8
+#define PARSING_RULE_TERMINAL_DETAIL_STRING_MAX_LEVEL 3
+#define PARSING_RULE_TERMINAL_DETAIL_STRING_MAX_SIZE \
+  (PARSING_RULE_TERMINAL_DETAIL_STRING_NODE_SIZE     \
+   << PARSING_RULE_TERMINAL_DETAIL_STRING_MAX_LEVEL)
+
+namespace detail {
+template <char32_t...>
+struct String {};
+// Declaration ToString
+template <Tokenize, typename>
+struct ToString;
+// Helpers ToString
+template <Tokenize tokenize, typename String>
+using ToString_t = typename ToString<tokenize, String>::type;
+// Base ToString
+template <Tokenize tokenize, template <char32_t...> typename String,
+          char32_t... Args>
+struct ToString<tokenize, String<Args...>> {
+  using type = parsing::rules::terminal::String<tokenize, Args...>;
+};
+}  // namespace detail
+
+#define PARSING_RULE_TERMINAL_DETAIL_STRING_GETAT(String, str, i)              \
+  std::conditional_t<                                                          \
+      (0##i < (sizeof(str) / sizeof(char32_t)) - 1),                           \
+      String<(0##i < (sizeof(str) / sizeof(char32_t)) - 1) ? (str)[0##i] : 0>, \
+      String<>>
+
+#define PARSING_RULE_TERMINAL_DETAIL_STRING_NODE(id, String, str, i)        \
+  parsing::helper::VariadicLiteralConcat_t<                                 \
+      char32_t, DEFER(id)(String, str, i##0), DEFER(id)(String, str, i##1), \
+      DEFER(id)(String, str, i##2), DEFER(id)(String, str, i##3),           \
+      DEFER(id)(String, str, i##4), DEFER(id)(String, str, i##5),           \
+      DEFER(id)(String, str, i##6), DEFER(id)(String, str, i##7)>
+
+#define PARSING_RULE_TERMINAL_DETAIL_STRING_LEVEL1(String, str, i) \
+  PARSING_RULE_TERMINAL_DETAIL_STRING_NODE(                        \
+      PARSING_RULE_TERMINAL_DETAIL_STRING_GETAT, String, str, i)
+#define PARSING_RULE_TERMINAL_DETAIL_STRING_LEVEL2(String, str, i) \
+  PARSING_RULE_TERMINAL_DETAIL_STRING_NODE(                        \
+      PARSING_RULE_TERMINAL_DETAIL_STRING_LEVEL1, String, str, i)
+#define PARSING_RULE_TERMINAL_DETAIL_STRING_LEVEL3(String, str, i) \
+  PARSING_RULE_TERMINAL_DETAIL_STRING_NODE(                        \
+      PARSING_RULE_TERMINAL_DETAIL_STRING_LEVEL2, String, str, i)
+
+#define PARSING_RULE_TERMINAL_DETAIL_STRING(String, str)                      \
+  EXPAND(EXPAND(                                                              \
+      EXPAND(std::enable_if_t<((sizeof(str) / sizeof(char32_t) - 1) <         \
+                               PARSING_RULE_TERMINAL_DETAIL_STRING_MAX_SIZE), \
+                              PARSING_RULE_TERMINAL_DETAIL_STRING_LEVEL3(     \
+                                  String, str, )>)))
+
+#define PARSING_RULE_TERMINAL_STRING2(str, tokenize) \
+  parsing::rules::terminal::detail::ToString_t<      \
+      tokenize, PARSING_RULE_TERMINAL_DETAIL_STRING( \
+                    parsing::rules::terminal::detail::String, U##str)>
+#define PARSING_RULE_TERMINAL_STRING1(str) \
+  PARSING_RULE_TERMINAL_STRING2(str, parsing::rules::Tokenize::No)
+
+#define PARSING_RULE_TERMINAL_DETAIL_GET_MACRO(_1, _2, NAME, ...) NAME
+#define PARSING_RULE_TERMINAL_STRING(...)         \
+  EXPAND(PARSING_RULE_TERMINAL_DETAIL_GET_MACRO(  \
+      __VA_ARGS__, PARSING_RULE_TERMINAL_STRING2, \
+      PARSING_RULE_TERMINAL_STRING1)(__VA_ARGS__))
+
+// base terminal tokens
 template <char32_t value, Tokenize tokenize = Tokenize::No>
 struct Literal {
   static const char32_t Value = value;
@@ -76,42 +272,57 @@ namespace non_terminal {
 template <Matchable... Rules>
 struct Seq {
   using Tokenize = helper::AnyOf<IsTokenize, Rules...>;
-  using Token = std::conditional_t<
+  using Token = std::vector<std::conditional_t<
       Tokenize::value,
-      helper::VariadicFilteredApply_t<IsTokenize, std::tuple, Rules...>,
-      std::tuple<>>;
+      helper::VariadicInsert_t<
+          helper::VariadicBinaryFilter_t<
+              std::is_same, helper::VariadicFilteredApply_t<
+                                IsTokenize, std::variant, Rules...>>,
+          std::monostate, 0>,
+      std::variant<std::monostate>>>;
   Token token;
 
   template <TranslationInput Input>
   std::optional<Input> Match(const Input& ti) {
     std::optional<Input> input = ti;
     bool success = false;
-    auto position = 0u;
+    // auto position = 0u;
     if constexpr (Tokenize::value)
-      success = ((input = MatchRule<Rules>(
-                      *input, (Rules::Tokenize::value ? position++ : 0)))
-                     .has_value() &&
-                 ...);
+      success = ((input = MatchRule<Rules>(*input)).has_value() && ...);
     else
-      success = ((input = Rules().Match(*input)) && ...);
+      success = ((input = Rules().Match(*input)).has_value() && ...);
     assert(success == input.has_value());
     return input;
   }
 
  private:
-  using IndexSequence = std::make_index_sequence<std::tuple_size_v<Token>>;
-  template <TranslationInput Input, size_t... Is>
-  constexpr std::optional<Input> MatchRule(Input& input, size_t position,
-                                           std::index_sequence<Is...>) {
-    std::optional<Input> ret;
-    ((Is == position ? ret = std::get<Is>(token).Match(input) : ret), ...);
-    return ret;
-  }
+  // Could not use tuple because of circular references making the construction
+  // of the tuple not possible as the forward declarations are not
+  // constructible. Maybe there is some workaround, using vector now instead.
+  // using IndexSequence = std::make_index_sequence<std::tuple_size_v<Token>>;
+  // template <TranslationInput Input, size_t... Is>
+  // constexpr std::optional<Input> MatchRule(Input& input, size_t position,
+  //                                         std::index_sequence<Is...>) {
+  //  std::optional<Input> ret;
+  //  ((Is == position ? ret = std::get<Is>(token).Match(input) : ret), ...);
+  //  return ret;
+  //}
 
+  // template <Matchable Rule, TranslationInput Input>
+  // std::optional<Input> MatchRule(Input& input, size_t position) {
+  //  if constexpr (Rule::Tokenize::value) {
+  //    return MatchRule(input, position, IndexSequence());
+  //  } else {
+  //    return Rule().Match(input);
+  //  }
+  //}
   template <Matchable Rule, TranslationInput Input>
-  std::optional<Input> MatchRule(Input& input, size_t position) {
+  std::optional<Input> MatchRule(Input& input) {
     if constexpr (Rule::Tokenize::value) {
-      return MatchRule(input, position, IndexSequence());
+      Rule rule;
+      auto ret = rule.Match(input);
+      token.emplace_back(rule);
+      return ret;
     } else {
       return Rule().Match(input);
     }

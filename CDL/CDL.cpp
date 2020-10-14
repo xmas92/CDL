@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "parsing/base_rules.hpp"
+#include "parsing/cdl_rules.hpp"
 #include "parsing/detail/helpers.hpp"
 #include "parsing/translation_input.hpp"
 #include "persistent/chunked_array.hpp"
@@ -192,6 +193,7 @@ int main() {
   parsing::helper::VariadicBinaryFilter_t<
       std::is_same, std::tuple<int, int, float, double, float, unsigned>>
       a;
+
   cout << typeid(a).name() << endl;
 
   using parsing::rules::Tokenize;
@@ -204,6 +206,7 @@ int main() {
   using parsing::rules::non_terminal::Star;
   using parsing::rules::terminal::Empty;
   using parsing::rules::terminal::Literal;
+  using parsing::rules::terminal::String;
   Seq<Empty, Empty, Literal<U't'>> r1;
   Seq<Empty, Empty, Literal<U'e', Tokenize::Yes>, Literal<U's'>,
       Literal<U't', Tokenize::Yes>>
@@ -214,13 +217,26 @@ int main() {
       Literal<U't'>, Literal<U'1', Tokenize::Yes>,
       Opt<Literal<U'1', Tokenize::Yes>>,
       Plus<Or<Literal<U'e'>, Literal<U's'>, Literal<U't', Tokenize::Yes>>>,
+      PARSING_RULE_TERMINAL_STRING("1test", Tokenize::Yes),
       Star<Or<Literal<U't', Tokenize::Yes>, Literal<U'e', Tokenize::Yes>,
               Literal<U's', Tokenize::Yes>, Literal<U'1'>>>>
       r4;
+  Seq<> r5;
   assert(not r1.Match(ti1));
   assert(r2.Match(ti1));
   assert(r3.Match(ti1));
   assert(r4.Match(ti1));
+  assert(r5.Match(ti1));
+
+  // (def mult (fn this([] 1)([x] x)([x y](*x y))([x y & more](apply this(this x
+  // y) more))))
+  std::basic_istringstream<char8_t> s12(
+      u8"(def mult (fn this([] 1)([x] x)([x y](*x y))([x y & more](apply "
+      u8"this(this x y) more))))");
+  parsing::EagerTranslationInput ti12(std::move(s12));
+
+  parsing::rules::Program p1;
+  assert(p1.Match(ti12));
 
   UnorderedSet<int, Myhash, std::equal_to<>, 64, MyAllocator<int>> USet;
   ConcurrentUnorderedSet<int, Myhash, std::equal_to<>, 64, MyAllocator<int>>

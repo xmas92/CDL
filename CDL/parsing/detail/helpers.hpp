@@ -271,15 +271,51 @@ using VariadicFromVariadic_t =
     typename VariadicFromVariadic<ToVariadic, FromVariadic>::type;
 // Base VariadicFromVariadic
 template <template <typename...> typename ToVariadic,
-          template <typename...> typename FromVariadic, typename... Args>
-struct VariadicFromVariadic<ToVariadic<>, FromVariadic<Args...>> {
-  using type = ToVariadic<Args...>;
+          template <typename...> typename FromVariadic, typename... Args1,
+          typename... Args2>
+struct VariadicFromVariadic<ToVariadic<Args1...>, FromVariadic<Args2...>> {
+  using type = ToVariadic<Args1..., Args2...>;
 };
 // Example VariadicFromVariadic
 static_assert(
     std::is_same_v<
         std::variant<int, long, float>,
         VariadicFromVariadic_t<std::variant<>, std::tuple<int, long, float>>>);
+static_assert(
+    std::is_same_v<std::variant<double, int, long, float>,
+                   VariadicFromVariadic_t<std::variant<double>,
+                                          std::tuple<int, long, float>>>);
+
+// Declaration VariadicFromVariadicLiteral
+template <typename, typename, typename>
+struct VariadicFromVariadicLiteral;
+// Helpers VariadicFromVariadicLiteral
+template <typename Literal, typename ToVariadic, typename FromVariadic>
+using VariadicFromVariadicLiteral_t =
+    typename VariadicFromVariadicLiteral<Literal, ToVariadic,
+                                         FromVariadic>::type;
+// Base VariadicFromVariadicLiteral
+template <typename Literal, template <Literal...> typename ToVariadic,
+          template <Literal...> typename FromVariadic, Literal... Args1,
+          Literal... Args2>
+struct VariadicFromVariadicLiteral<Literal, ToVariadic<Args1...>,
+                                   FromVariadic<Args2...>> {
+  using type = ToVariadic<Args1..., Args2...>;
+};
+// Is there a way to generalize literals and typenames
+// Example VariadicFromVariadicLiteral
+namespace example {
+template <int...>
+struct Ints {};
+}  // namespace example
+static_assert(
+    std::is_same_v<example::Ints<1, 2, 3>,
+                   VariadicFromVariadicLiteral_t<int, example::Ints<>,
+                                                 example::Ints<1, 2, 3>>>);
+static_assert(
+    std::is_same_v<example::Ints<1, 2, 3, 4>,
+                   VariadicFromVariadicLiteral_t<int, example::Ints<1>,
+                                                 example::Ints<2, 3, 4>>>);
 
 // Declaration VariadicConcat
 template <typename, typename...>
@@ -306,6 +342,34 @@ static_assert(
                          std::variant<int, long, float>,
                          std::variant<long, long, float>>>);
 
+// Declaration VariadicLiteralConcat
+template <typename, typename, typename...>
+struct VariadicLiteralConcat;
+// Helpers VariadicLiteralConcat
+template <typename Literal, typename Variadic, typename... Rest>
+using VariadicLiteralConcat_t =
+    typename VariadicLiteralConcat<Literal, Variadic, Rest...>::type;
+// Base VariadicLiteralConcat
+template <typename Literal, template <Literal...> typename Variadic,
+          Literal... Args>
+struct VariadicLiteralConcat<Literal, Variadic<Args...>> {
+  using type = Variadic<Args...>;
+};
+// General VariadicLiteralConcat
+template <typename Literal, template <Literal...> typename Variadic,
+          typename... Rest, Literal... Args1, Literal... Args2>
+struct VariadicLiteralConcat<Literal, Variadic<Args1...>, Variadic<Args2...>,
+                             Rest...> {
+  using type =
+      VariadicLiteralConcat_t<Literal, Variadic<Args1..., Args2...>, Rest...>;
+};
+// Example VariadicLiteralConcat
+static_assert(
+    std::is_same_v<example::Ints<1, 2, 3, 4, 5, 6, 7, 8, 9>,
+                   VariadicLiteralConcat_t<int, example::Ints<1, 2, 3>,
+                                           example::Ints<4, 5, 6>,
+                                           example::Ints<7, 8, 9>>>);
+
 // Declaration VariadicInsert
 template <typename, typename, size_t>
 struct VariadicInsert;
@@ -316,7 +380,7 @@ using VariadicInsert_t = typename VariadicInsert<Variadic, Arg, N>::type;
 template <template <typename...> typename Variadic, typename Arg, size_t N,
           typename... Args>
 struct VariadicInsert<Variadic<Args...>, Arg, N> {
-  static_assert(N < sizeof...(Args));
+  static_assert(N <= sizeof...(Args));
 
  private:
   template <size_t I>
